@@ -38,8 +38,8 @@ for subject = 1:n
     
     %% Preprocessing
     % Preprocess data
-    cfg_preproc = cfg_trldef;
-    cfg_preproc.channel = 1:72;
+    cfg_preproc = [];
+    cfg_preproc.channel = 1:64;
     cfg_preproc.continuous = 'yes';
     cfg_preproc.detrend = 'yes';
     cfg_preproc.demean = 'yes';
@@ -50,8 +50,6 @@ for subject = 1:n
     % Re-sample data for handling
     cfg_resample = [];
     cfg_resample.resamplefs = 512;
-    cfg_resample.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
-    
-    ft_resampledata(cfg_resample, preprocdata);
+    cfg_resample.outputfile = fullfile(datadir, 'preproc-resample', files(subject).name);
     
 end
