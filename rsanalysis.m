@@ -9,57 +9,95 @@ trialdur = 60;
 discard.start = 1;
 discard.end = 1;
 
+nepoch = trialdur*4/2;
 
-for subject = 1:n
+for subject = 1:1
     file = fullfile(datadir, files(subject).name);
     
     %% Trial Definition
-    cfg_trldef = [];
-    cfg_trldef.trialdef.eventtype = 'STATUS';
-    cfg_trldef.trialfun = 'ft_trialfun_general';
-    cfg_trldef.dataset = file;
-    cfg_trldef.trialdef.prestim = -discard.start;
-    cfg_trldef.trialdef.poststim = trialdur -discard.end;
-    cfg_trldef.trialdef.eventvalue = 100:256;
+    cfgtrldef = [];
+    cfgtrldef.trialdef.eventtype = 'STATUS';
+    cfgtrldef.trialfun = 'ft_trialfun_general';
+    cfgtrldef.dataset = file;
+    cfgtrldef.trialdef.prestim = -discard.start;
+    cfgtrldef.trialdef.poststim = trialdur -discard.end;
+    cfgtrldef.trialdef.eventvalue = 100:256;
     try
-        cfg_trldef = ft_definetrial(cfg_trldef);
+        cfgtrldef = ft_definetrial(cfgtrldef);
     catch define_trial_error
-        disp(cfg_trldef.trialdef.eventvalue);
-        disp(cfg_trldef.dataset);
+        disp(cfgtrldef.trialdef.eventvalue);
+        disp(cfgtrldef.dataset);
         rethrow(define_trial_error);
     end
-    cfg_trldef.trl = cfg_trldef.trl(1, :);
+    cfgtrldef.trl = cfgtrldef.trl(1, :);
+    % assign trials based on trigger
     for iTrial = 1:3
-        cfg_trldef.trl(iTrial+1, :) = cfg_trldef.trl(1, :) +...
-                                    [(iTrial)*60*cfg_trldef.trl(1, 3),...
-                                    (iTrial)*60*cfg_trldef.trl(1, 3),...
+        cfgtrldef.trl(iTrial+1, :) = cfgtrldef.trl(1, :) +...
+                                    [(iTrial)*60*cfgtrldef.trl(1, 3),...
+                                    (iTrial)*60*cfgtrldef.trl(1, 3),...
                                     0, mod(iTrial, 2)];
     end
+    % only take the second and fourth trial (eyes closed)
+    cfgtrldef.trl = cfgtrldef.trl([2, 4], :);
     
     %% Preprocessing
     % Preprocess data
-    cfg_preproc = cfg_trldef;
-    cfg_preproc.channel = 1:72;
-    cfg_preproc.continuous = 'yes';
-    cfg_preproc.detrend = 'yes';
-    cfg_preproc.demean = 'yes';
-    cfg_preproc.reref = 'no';
+    cfgpreproc = cfgtrldef;
+    cfgpreproc.channel = 1:72;
+    cfgpreproc.continuous = 'yes';
+    cfgpreproc.detrend = 'yes';
+    cfgpreproc.demean = 'yes';
+    cfgpreproc.reref = 'no';
+    preprocdata = ft_preprocessing(cfgpreproc);
     
-    preprocdata = ft_preprocessing(cfg_preproc);
+    %% Create Bipolar Channels
+    preprocdata.label{73} = 'EOG';
+    preprocdata.label{74} = 'JAW';
+    for trial = 1:numel(preprocdata.trial)
+        preprocdata.trial{trial}(73, :) = ...
+            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG4'), :) - ...
+            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG3'), :);
+        preprocdata.trial{trial}(74, :) = ...
+            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG5'), :) - ...
+            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG6'), :);
+    end
     
-    % Re-sample data for handling
-    cfg_resample = [];
-    cfg_resample.resamplefs = 512;
-    cfg_resample.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
+    %% Re-sample data for handling
+    cfgresample = [];
+    cfgresample.resamplefs = 512;
+    cfgresample.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
+    resampledata = ft_resampledata(cfgresample, preprocdata);
     
-    ft_resampledata(cfg_resample, preprocdata);
+    %% Artifact detection
+    cfgartifact = [];
+    cfgartifact.trl = cfgpreproc.trl;
+    cfgartifact.continuous = 'yes';
+    % EOG specific
+    cfgartifact.artfctdef.eog.channel = 'EOG';
+    cfgartifact.artfctdef.eog.trlpadding = 0;
+    cfgartifact.artfctdef.eog.interactive = 'no';
+    [cfgartifact, artifact.eog] = ft_artifact_eog(cfgartifact, resampledata);
+    % Muscle specific
+    cfgartifact.artfctdef.muscle.channel = 'JAW';
+    cfgartifact.artfctdef.muscle.trlpadding = 0;
+    cfgartifact.artfctdef.muscle.interactive = 'yes';
+    [cfgartifact, artifact.muscle] = ft_artifact_muscle(cfgartifact, resampledata);
+    
+    % Reject Artifacts
     
     
     %% Electrode rejection
-    cfg_visual = [];
-    cfg_visual.inputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
-    cfg_visual.method = 'trial';
-    cfg_visual.keepchannel = 'no';
+%     cfgvisual = [];
+%     cfgvisual.inputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
+%     cfgvisual.method = 'trial';
+%     cfgvisual.keepchannel = 'no';
+%     reject_data = ft_rejectvisual(cfgvisual);
     
-    reject_data = ft_rejectvisual(cfg_visual);
+    
+    
+    
+    %% Chop everything into 2s trials, reject blinks
+    
+    
+    
 end
