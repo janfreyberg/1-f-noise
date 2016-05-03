@@ -54,4 +54,12 @@ for subject = 1:n
     
     ft_resampledata(cfg_resample, preprocdata);
     
+    
+    %% Electrode rejection
+    cfg_visual = [];
+    cfg_visual.inputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
+    cfg_visual.method = 'trial';
+    cfg_visual.keepchannel = 'no';
+    
+    reject_data = ft_rejectvisual(cfg_visual);
 end
