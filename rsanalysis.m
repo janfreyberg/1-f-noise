@@ -73,17 +73,23 @@ for subject = 1:1
     cfgartifact.trl = cfgpreproc.trl;
     cfgartifact.continuous = 'yes';
     % EOG specific
+    % This shouldn't reject many artifacts since we were using the
+    % eyes-closed trials here, but just to be on the safe side.
     cfgartifact.artfctdef.eog.channel = 'EOG';
     cfgartifact.artfctdef.eog.trlpadding = 0;
     cfgartifact.artfctdef.eog.interactive = 'no';
     [cfgartifact, artifact.eog] = ft_artifact_eog(cfgartifact, resampledata);
     % Muscle specific
+    % This should reject any artifacts that stem from head movements and
+    % jaw clenching!
     cfgartifact.artfctdef.muscle.channel = 'JAW';
     cfgartifact.artfctdef.muscle.trlpadding = 0;
     cfgartifact.artfctdef.muscle.interactive = 'yes';
     [cfgartifact, artifact.muscle] = ft_artifact_muscle(cfgartifact, resampledata);
     
     % Reject Artifacts
+    cfgartifact.artfctdef.reject = 'nan';
+    rejectartifactdata = ft_rejectartifact(cfgartifact, resampledata);
     
     
     %% Electrode rejection
