@@ -132,4 +132,17 @@ for subject = 1:n
     
     
     %% Linear Regression
+    % First, fit a line for each electrode
+    frequencyband = freqdata.freq < 7 | freqdata.freq > 14;
+    figure; hold on;
+    for electrode = 1:64
+        
+        y = log10(freqdata.powspctrm(electrode, frequencyband))';
+        x = freqdata.freq(frequencyband)';
+        X = [ones(size(x)), x];
+        
+        b(electrode, :) = X\y;
+        plot(freqdata.freq, b(electrode, 1) + freqdata.freq*b(electrode, 2));
+    end
 end
+
