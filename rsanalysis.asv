@@ -11,9 +11,8 @@ discard.end = 1;
 
 nepoch = trialdur*4/2;
 
-for subject = 1:1
+for subject = 1:n
     file = fullfile(datadir, files(subject).name);
-    
     %% Trial Definition
     cfgtrldef = [];
     cfgtrldef.trialdef.eventtype = 'STATUS';
@@ -40,6 +39,7 @@ for subject = 1:1
     % only take the second and fourth trial (eyes closed)
     cfgtrldef.trl = cfgtrldef.trl([2, 4], :);
     
+    
     %% Preprocessing
     % Preprocess data
     cfgpreproc = cfgtrldef;
@@ -48,25 +48,35 @@ for subject = 1:1
     cfgpreproc.detrend = 'yes';
     cfgpreproc.demean = 'yes';
     cfgpreproc.reref = 'no';
-    preprocdata = ft_preprocessing(cfgpreproc);
+    cfgpreproc.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
+    if ~exist(cfgpreproc.outputfile, 'file')
+        preprocdata = ft_preprocessing(cfgpreproc);
+    else
+        preprocdata = getfield(load(cfgpreproc.outputfile), 'data');
+    end
+    
     
     %% Create Bipolar Channels
-    preprocdata.label{73} = 'EOG';
-    preprocdata.label{74} = 'JAW';
     for trial = 1:numel(preprocdata.trial)
         preprocdata.trial{trial}(73, :) = ...
-            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG4'), :) - ...
-            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG3'), :);
+            preprocdata.trial{trial}(68, :) - ... %68 is ext. 4
+            preprocdata.trial{trial}(67, :); %67 is ext. 3
         preprocdata.trial{trial}(74, :) = ...
-            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG5'), :) - ...
-            preprocdata.trial{trial}(ismember(preprocdata.label, 'EXG6'), :);
+            preprocdata.trial{trial}(69, :) - ... %69 is ext. 5
+            preprocdata.trial{trial}(70, :); %70 is ext. 6
     end
+    preprocdata.label{73} = 'EOG'; % Above and below the eye
+    preprocdata.label{74} = 'JAW'; % Left and Right Mastoid
+    
     
     %% Re-sample data for handling
     cfgresample = [];
     cfgresample.resamplefs = 512;
     cfgresample.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
-    resampledata = ft_resampledata(cfgresample, preprocdata);
+    if ~exist(cfgresample.outputfile, 'file')
+        resampledata = ft_resampledata(cfgresample, preprocdata);
+    end
+    
     
     %% Artifact detection
     cfgartifact = [];
@@ -80,26 +90,30 @@ for subject = 1:1
     cfgartifact.artfctdef.eog.interactive = 'no';
     [cfgartifact, artifact.eog] = ft_artifact_eog(cfgartifact, resampledata);
     % Muscle specific
+    % This should reject any artifacts that stem from head movements and
+    % jaw clenching!
     cfgartifact.artfctdef.muscle.channel = 'JAW';
     cfgartifact.artfctdef.muscle.trlpadding = 0;
-    cfgartifact.artfctdef.muscle.interactive = 'yes';
+    cfgartifact.artfctdef.muscle.interactive = 'no';
     [cfgartifact, artifact.muscle] = ft_artifact_muscle(cfgartifact, resampledata);
     
     % Reject Artifacts
+    cfgartifact.artfctdef.reject = 'nan';
+    cfgartifact.outputfile = fullfile(datadir, 'autoreject-artifacts', strrep(files(subject).name, 'bdf', 'mat'));
+    if ~exist(cfgartifact.outputfile, 'file')
+        rejectartifactdata = ft_rejectartifact(cfgartifact, resampledata);
+    end
     
-    
-    
-    %% Electrode rejection
-%     cfgvisual = [];
-%     cfgvisual.inputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
-%     cfgvisual.method = 'trial';
-%     cfgvisual.keepchannel = 'no';
-%     reject_data = ft_rejectvisual(cfgvisual);
-    
-    
-    
-    
-    %% Chop everything into 2s trials, reject blinks
+    % Electrode rejection
+    cfgvisual = [];
+    cfgvisual.inputfile = fullfile(datadir, 'autoreject-artifacts', strrep(files(subject).name, 'bdf', 'mat'));
+    cfgvisual.outputfile = fullfile(datadir, 'visualreject-electrodes', strrep(files(subject).name, 'bdf', 'mat'));
+    cfgvisual.method = 'trial';
+    cfgvisual.metric = 'var';
+    cfgvisual.channel = 1:64;
+    cfgvisual.keepchannel = 'repair';
+    cfgvisual.keepchannel = 'no';
+    reject_data = ft_rejectvisual(cfgvisual);
     
     
     
