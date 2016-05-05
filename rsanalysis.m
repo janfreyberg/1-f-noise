@@ -134,15 +134,25 @@ for subject = 1:n
     %% Linear Regression
     % First, fit a line for each electrode
     frequencyband = freqdata.freq < 7 | freqdata.freq > 14;
+    x = freqdata.freq(frequencyband)';
+    X = [ones(size(x)), x];
     figure; hold on;
     for electrode = 1:64
         
         y = log10(freqdata.powspctrm(electrode, frequencyband))';
-        x = freqdata.freq(frequencyband)';
-        X = [ones(size(x)), x];
+        
         
         b(electrode, :) = X\y;
         plot(freqdata.freq, b(electrode, 1) + freqdata.freq*b(electrode, 2));
     end
+    
+    % Identify outliers based on intercept and +ve slope:
+    outliers = b(:, 2) > mean(b(:, 2)) + 2*std(b(:, 2)) | ...
+                b(:, 2) < mean(b(:, 2)) - 2*std(b(:, 2)) | ...
+                b(:, 1) > 0;
+    
+    % Fit line to meaned data:
+    y = log10(mean(freqdata.powspctrm(~outliers, frequencyband)))';
+    bsum = X\y;
 end
 
