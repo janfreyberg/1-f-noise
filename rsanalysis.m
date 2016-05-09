@@ -55,6 +55,8 @@ for subject = 1:n
         preprocdata = getfield(load(cfgpreproc.outputfile), 'data');
     end
     
+    % Fix labels: if labels are A1-B32, replace with 1020
+    preprocdata = utils.fixlabels(preprocdata);
     
     %% Create Bipolar Channels
     for trial = 1:numel(preprocdata.trial)
@@ -73,9 +75,8 @@ for subject = 1:n
     cfgresample = [];
     cfgresample.resamplefs = 512;
     cfgresample.outputfile = fullfile(datadir, 'preproc-resample', strrep(files(subject).name, 'bdf', 'mat'));
-    if ~exist(cfgresample.outputfile, 'file')
-        resampledata = ft_resampledata(cfgresample, preprocdata);
-    end
+    resampledata = ft_resampledata(cfgresample, preprocdata);
+    
     
     
     %% Artifact detection
@@ -102,18 +103,18 @@ for subject = 1:n
     cfgartifact.outputfile = fullfile(datadir, 'autoreject-artifacts', strrep(files(subject).name, 'bdf', 'mat'));
     if ~exist(cfgartifact.outputfile, 'file')
         rejectartifactdata = ft_rejectartifact(cfgartifact, resampledata);
+    else
+        rejectartifactdata = getfield(load(cfgartifact.outputfile), 'data');
     end
     
-    % Electrode rejection
-%     cfgvisual = [];
-%     cfgvisual.inputfile = fullfile(datadir, 'autoreject-artifacts', strrep(files(subject).name, 'bdf', 'mat'));
-%     cfgvisual.outputfile = fullfile(datadir, 'visualreject-electrodes', strrep(files(subject).name, 'bdf', 'mat'));
-%     cfgvisual.method = 'trial';
-%     cfgvisual.metric = 'var';
-%     cfgvisual.channel = 1:64;
-%     cfgvisual.keepchannel = 'repair';
-%     cfgvisual.keepchannel = 'no';
-%     reject_data = ft_rejectvisual(cfgvisual);
+    % Remove Short Trials (below 2 seconds)
+    trials = 1:numel(rejectartifactdata.trial);
+    keep = true(size(trials));
+    for trial = trials
+        keep(trial) = peak2peak(rejectartifactdata.time{trial}) > 4;
+    end
+    rejectartifactdata = ft_selectdata(rejectartifactdata, 'rpt', trials(keep));
+    
     
     
     %% Frequency Analysis
@@ -121,13 +122,15 @@ for subject = 1:n
     cfgfreq.method = 'mtmfft';
     cfgfreq.output = 'pow';
     cfgfreq.channel = 1:64;
-    cfgfreq.foilim = [2, 24];
-    cfgfreq.tapsmofrq = 0.2;
-    cfgfreq.inputfile = cfgartifact.outputfile;
+    cfgfreq.foi = 2:0.25:48;
+    cfgfreq.tapsmofrq = 0.5;
+%     cfgfreq.inputfile = cfgartifact.outputfile;
     cfgfreq.outputfile = fullfile(datadir, 'fft', strrep(files(subject).name, 'bdf', 'mat'));
     
     if ~exist(cfgfreq.outputfile, 'file')
-        freqdata = ft_freqanalysis(cfgfreq);
+        freqdata = ft_freqanalysis(cfgfreq, rejectartifactdata);
+    else
+        freqdata = getfield(load(cfgfreq.outputfile), 'freq');
     end
     
     
@@ -136,23 +139,28 @@ for subject = 1:n
     frequencyband = freqdata.freq < 7 | freqdata.freq > 14;
     x = freqdata.freq(frequencyband)';
     X = [ones(size(x)), x];
-    figure; hold on;
     for electrode = 1:64
-        
         y = log10(freqdata.powspctrm(electrode, frequencyband))';
-        
-        
-        b(electrode, :) = X\y;
-        plot(freqdata.freq, b(electrode, 1) + freqdata.freq*b(electrode, 2));
+        regression(subject).byelectrode(electrode, :) = X\y;
     end
     
     % Identify outliers based on intercept and +ve slope:
-    outliers = b(:, 2) > mean(b(:, 2)) + 2*std(b(:, 2)) | ...
-                b(:, 2) < mean(b(:, 2)) - 2*std(b(:, 2)) | ...
-                b(:, 1) > 0;
+    outliers = regression(subject).byelectrode(:, 2) > mean(regression(subject).byelectrode(:, 2)) + 2*std(regression(subject).byelectrode(:, 2)) | ...
+                regression(subject).byelectrode(:, 2) < mean(regression(subject).byelectrode(:, 2)) - 2*std(regression(subject).byelectrode(:, 2)) | ...
+                regression(subject).byelectrode(:, 1) >= 0;
     
     % Fit line to meaned data:
     y = log10(mean(freqdata.powspctrm(~outliers, frequencyband)))';
-    bsum = X\y;
+    regression(subject).average = X\y;
 end
 
+
+% prepare summary data for spreadsheet
+for subject = 1:n
+    diagnosis{subject, 1} = files(subject).name(4:6);
+    id{subject, 1} = files(subject).name(4:11);
+    intercept(subject, 1) = regression(subject).average(1);
+    slope(subject, 1) = regression(subject).average(2);
+end
+
+writetable(table(id, diagnosis, intercept, slope), fullfile(pwd, 'results.csv'))
