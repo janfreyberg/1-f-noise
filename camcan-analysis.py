@@ -18,7 +18,7 @@ import scipy.stats
 import pandas as pd
 
 # plotting tools
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 # %matplotlib notebook
 
 # interactive notebook features
@@ -35,13 +35,13 @@ import mne
 
 # In[2]:
 
-camcanroot = Path('/Volumes') / 'Seagate Expansion Drive' / 'camcan'
+# camcanroot = Path('/Volumes') / 'Seagate Expansion Drive' / 'camcan'
 # camcanroot = Path('D:') / 'camcan'
 # camcanroot = Path('/data') / 'group' / 'FANS' / 'camcan-meg' / 'camcan165' / 'camcan165'
-# camcanroot = Path('/Users') / 'jan' / 'Documents' / 'eeg-data' / 'camcan'
+camcanroot = Path('/Users') / 'jan' / 'Documents' / 'eeg-data' / 'camcan'
 
-megdataroot = camcanroot / 'cc700' / 'mri' / \
-    'pipeline' / 'release004' / 'BIDSsep' / 'megraw'
+megdataroot = (camcanroot / 'cc700' / 'mri' / 'pipeline' /
+               'release004' / 'BIDSsep' / 'megraw')
 subjects = list(megdataroot.glob('sub-*'))
 ids = [os.path.split(subject)[-1][4:] for subject in subjects]
 
@@ -159,7 +159,7 @@ for subject in tqdm(range(2)):
     restfile = subjects[subject] / 'meg' / 'rest_raw.fif'
     # raw data
     raw = mne.io.read_raw_fif(restfile, verbose='WARNING')
-    # crop
+    # crop to two minutes
     raw = raw.crop(tmin=1, tmax=120)
     # resample
     raw = raw.load_data()
@@ -179,13 +179,17 @@ for subject in tqdm(range(2)):
     # pick gradiometers
     picks = mne.pick_types(raw.info, meg='grad', eeg=False,
                            stim=False, eog=False, exclude='bads')
-    # run an ICA
-    ica = mne.preprocessing.run_ica(raw, n_components=0.95,
-                                    picks=picks,
-                                    eog_ch=veog, ecg_ch=ecg)
-    unprocessed_raw = raw.copy()
-    # apply this ICA
-    raw = ica.apply(raw, exclude=ica.exclude)
+    # try to run an ICA
+    try:
+        ica = mne.preprocessing.run_ica(raw, n_components=0.95,
+                                        picks=picks,
+                                        eog_ch=veog, ecg_ch=ecg)
+        # unprocessed_raw = raw.copy()
+        # apply this ICA
+        raw = ica.apply(raw, exclude=ica.exclude)
+
+    except RuntimeError:
+        pass
 
     # do the PSD analysis
     psd, freqs = mne.time_frequency.psd_welch(
@@ -206,6 +210,9 @@ for subject in tqdm(range(2)):
                    age=subject_details.loc[ids[subject]].age,
                    gender=subject_details.loc[ids[subject]].gender_code)
     )
+    # save the individual data to a pickle
+    with open(Path('.') / 'pickles' / (ids[subject] + '.pickle'), 'wb+') as f:
+        pickle.dump((psd, sub_params), f)
 
 
 # ### Save data to pickles
