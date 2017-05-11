@@ -37,8 +37,8 @@ import mne
 
 # camcanroot = Path('/Volumes') / 'Seagate Expansion Drive' / 'camcan'
 # camcanroot = Path('D:') / 'camcan'
-# camcanroot = Path('/data') / 'group' / 'FANS' / 'camcan-meg' / 'camcan165' / 'camcan165'
-camcanroot = Path('/Users') / 'jan' / 'Documents' / 'eeg-data' / 'camcan'
+camcanroot = Path('/data') / 'group' / 'FANS' / 'camcan-meg' / 'camcan165' / 'camcan165'
+# camcanroot = Path('/Users') / 'jan' / 'Documents' / 'eeg-data' / 'camcan'
 
 megdataroot = (camcanroot / 'cc700' / 'mri' / 'pipeline' /
                'release004' / 'BIDSsep' / 'megraw')
@@ -154,7 +154,7 @@ ssscal = megdataroot / 'sss_cal.dat'
 all_parameters = []
 psds = []
 
-for subject in tqdm(range(2)):
+for subject in tqdm(range(170)):
     # resting state file
     restfile = subjects[subject] / 'meg' / 'rest_raw.fif'
     # raw data
@@ -194,7 +194,7 @@ for subject in tqdm(range(2)):
     # do the PSD analysis
     psd, freqs = mne.time_frequency.psd_welch(
         raw, picks=picks, fmin=2, fmax=24, tmin=1, tmax=601, n_fft=2000, n_overlap=1000,
-        verbose='WARNING', n_jobs=4
+        verbose='WARNING', n_jobs=8
     )
     # Do the linear regression
     findices = (freqs < 7) | (freqs > 14)
