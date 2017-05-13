@@ -22,8 +22,8 @@ from matplotlib import pyplot as plt
 # %matplotlib notebook
 
 # interactive notebook features
-from tqdm import tqdm_notebook as tqdm
-from ipywidgets import interact
+from tqdm import tqdm as tqdm
+# from ipywidgets import interact
 
 # meg analysis
 import mne
@@ -50,7 +50,7 @@ print(f'{len(subjects)} subjects found in {megdataroot}')
 
 # filter out no-files
 subjects = [subject for subject in subjects if (
-    subject / 'meg' / 'rest_raw.fif').is_file()]
+    subject / 'meg' / 'task_raw.fif').is_file()]
 print(f'{len(subjects)} subjects have resting-state recordings.')
 
 # find the demographic info
@@ -97,13 +97,19 @@ ssscal = megdataroot / 'sss_cal.dat'
 all_parameters = []
 psds = []
 
-for subject in tqdm(range(2)):
+for subject in tqdm(range(28, 170)):
     # resting state file
     restfile = subjects[subject] / 'meg' / (recording + '_raw.fif')
     # raw data
-    raw = mne.io.read_raw_fif(restfile, verbose='WARNING')
+    try:
+        raw = mne.io.read_raw_fif(restfile, verbose='WARNING')
+    except:
+        continue
     # crop
-    raw = raw.crop(tmin=20, tmax=500)
+    try:
+        raw = raw.crop(tmin=20, tmax=500)
+    except:
+        continue
     # resample
     raw = raw.load_data()
     raw = raw.resample(256)
