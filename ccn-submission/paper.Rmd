@@ -31,11 +31,11 @@ One feature of the power spectrum of human brain activity obtained through elect
 
 Interestingly, they were also able to demonstrate a relationship between the levels of 1/_f_ noise and visual working memory, finding that 1/_f_ noise mediates impairments of visual working memory in ageing.
 
-Here, we wanted to replicate this finding and test its central hypoethis in a public dataset: the Cambridge Center for Ageing and Neuroscience data repository [Cam-CAN, @taylor_cambridge_2017]. Recently released, this data repository contains resting-state MEG data from around 656 individuals aged 18–87. In addition, most of these participants performed a visual short-term memory (VSTM) task. We therefore tried to replicate the finding of 1/_f_ noise increasing in age, as well as the relationship between 1/_f_ noise and working memory performance.
+Here, we wanted to replicate the finding and test its central hypoethis of a relationship between  in a public dataset: the Cambridge Center for Ageing and Neuroscience data repository [Cam-CAN, @taylor_cambridge_2017].  We therefore tried to replicate the finding of 1/_f_ noise increasing in age, as well as the relationship between 1/_f_ noise and working memory performance.
 
 # Methods
 
-Due to computational resources, we focused on an intial random subset of 170 subjects from the Cam-CAN Stage 2 release. These subjects had an average age of 54.7 years (st.dev.: 18.3, range: 18-86).
+Due to computational resources, we focused on an intial random subset of 170 subjects from the Cam-CAN Stage 2 release. These subjects had an average age of 54.7 years (st.dev.: 18.3, range: 18-86). We analysed two sets of MEG recordings: resting state, and sensorimotor task recordings. In addition, most of these participants performed a visual short-term memory (VSTM) task.
 
 MEG recording methods are described in Taylor et al. [-@taylor_cambridge_2017]. Resting-state recordings lasted 8:40 minutes and were done with eyes closed.
 
