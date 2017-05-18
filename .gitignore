@@ -50,3 +50,5 @@ Temporary Items
 *.asv
 cachedir
 .Rproj.user
+
+__pycache__/
