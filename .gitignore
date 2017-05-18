@@ -49,3 +49,4 @@ Temporary Items
 # Matlab specific files
 *.asv
 cachedir
+.Rproj.user
