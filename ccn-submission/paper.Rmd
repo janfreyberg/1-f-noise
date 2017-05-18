@@ -1,5 +1,5 @@
 ---
-title: "No relationship between age and 1/_f_ noise in 170 MEG datasets"
+title: "1/_f_ noise is related to age, but not short-term memory or sensorimotor reaction time."
 author: "Jan Freyberg"
 email: jan.freyberg@kcl.ac.uk
 department: Forensic and Neurodevelopmental Sciences, King's College London
@@ -14,7 +14,7 @@ header-includes:
   - \usepackage{hyperref}
 
 abstract: 
-  "Recent evidence points towards an increase in 1/_f_ neural noise (noise with decreasing power in higher frequency bands) with age. Previous evidence related this increase to a decrease in working memory performance. Here, we attempted to replicate previous findings with data from the Cam-CAN project. We used two minutes of a resting-state recording to estimate the power-spectral density of neural activity. We then correlated the $\\mathbf{\\beta}$ of a regression of noise on frequency with age, sensorimotor reaction times, and short-term memory performance. We were unable to reproduce previously demonstrated increases in 1/_f_ noise with age, as well as a relationship with working memory performance, indicating that an increase of 1/_f_ noise is not a universal phenomenon and may be task-dependent."
+  "Recent evidence points towards an increase in 1/_f_ neural noise (noise with decreasing power in higher frequency bands) with age. Previous evidence related this increase to a decrease in working memory performance. Here, we attempted to replicate previous findings with data from the Cam-CAN project. We used two minutes of a resting-state recording to estimate the power-spectral density of neural activity. We then correlated the $\\mathbf{\\beta}$ of a regression of noise on frequency with age, sensorimotor reaction times, and short-term memory performance. We reproduced previously demonstrated increases in 1/_f_ noise with age, but did not find a relationship with working memory performance, indicating that it may not be important in cognitive decline in ageing."
 
 keywords: MEG; noise; ageing
 bibliography: /Users/jan/Documents/Zotero/better-bibtex/zotero-library.bib
@@ -111,7 +111,7 @@ The relationship between 1/_f_ noise slope and age replicated ([Figure 1](#fig-s
 
 ```{r, echo=FALSE, fig.width=3.3, fig.height=2.6}
 p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
-  geom_smooth(method="loess", color='gray') +
+  geom_smooth(method=lm, color='gray') +
   labs(y = "Average Slope", color='Age\n', x = "Age (years)") +
   geom_point(size=1.2, show.legend = FALSE) +
   scale_color_viridis() +
@@ -124,7 +124,7 @@ p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
 p
 ```
 
-###### _Figure 1: No relationship between 1/f noise and age._ {#fig-slope-age}
+###### _Figure 1: Relationship between 1/f noise during a sensorimotor task and age._ {#fig-slope-age}
 
 ```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, warning=FALSE}
 p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
@@ -142,6 +142,26 @@ p
 ```
 
 ###### _Figure 2: No relationship between 1/f noise and reaction times._ {#fig-slope-rt}
+
+```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, warning=FALSE}
+p <- task.data %>%
+  filter(Prcsn_ss4 <= 1) %>%
+  ggplot(aes(x=Prcsn_ss4, y=average.slope, color=age)) +
+  geom_smooth(method=lm, color='gray') +
+  geom_point(size=1.2, show.legend=FALSE) +
+  scale_color_viridis() +
+  labs(x = "Sensorimotor Reaction Time (s)", y = "Average Slope", color='Age\n') +
+  theme_bw() +
+  scale_x_continuous(expand = c(0, 0)) +
+  theme(axis.text.y = element_text(face="bold", size=6, angle=90),
+        axis.text.x = element_text(face="bold", size=6),
+        legend.position = 'bottom')
+
+p
+```
+
+###### _Figure 3: No relationship between 1/f noise and short-term memory._ {#fig-slope-memory}
+
 
 &nbsp;
 
