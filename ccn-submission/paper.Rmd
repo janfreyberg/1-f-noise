@@ -60,7 +60,8 @@ age.split.spectra <- read_csv('../csv/agesplit-spectra.csv') %>%
   gather(frequency, power, -pid, -group) %>%
   mutate(frequency = as.numeric(frequency)) %>%
   mutate(group = str_replace(group, 'old', 'Oldest 25%')) %>%
-  mutate(group = str_replace(group, 'young', 'Youngest 25%'))
+  mutate(group = str_replace(group, 'young', 'Youngest 25%')) %>%
+  mutate(group = factor(group, levels = c('Youngest 25%', 'Oldest 25%')))
 
 # load the vstm behavior data'vstm-behavior.csv'
 
@@ -96,7 +97,7 @@ rest.slope.task.cor <- both.data %$% cor.test(average.slope.rest, average.slope.
 
 ```
 
-There was no evidence for a relationship between 1/_f_ noise slope and age (Figure 1, `r age.slope.cor`). There was also no evidence for a relationship between 1/_f_ noise and sensorimotor reaction times (Figure 2, `r rt.slope.cor`) or visual short-term memory (`r vstm.slope.cor`).
+There was no evidence for a relationship between 1/_f_ noise slope and age ([Figure 1](#fig-slope-age), `r age.slope.cor`). There was also no evidence for a relationship between 1/_f_ noise and sensorimotor reaction times ([Figure 2](#fig-slope-rt), `r rt.slope.cor`) or visual short-term memory (`r vstm.slope.cor`).
 
 &nbsp;
 
@@ -114,7 +115,8 @@ p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
 
 p
 ```
-_Figure 1: No relationship between 1/f noise and age._
+
+###### _Figure 1: No relationship between 1/f noise and age._ {#fig-slope-age}
 
 ```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, warning=FALSE}
 p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
@@ -130,7 +132,8 @@ p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
 
 p
 ```
-_Figure 2: No relationship between 1/f noise and reaction times._
+
+###### _Figure 2: No relationship between 1/f noise and reaction times._ {#fig-slope-rt}
 
 &nbsp;
 
@@ -148,6 +151,8 @@ p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=grou
               show.legend = FALSE) +
   labs(group = '', x = 'Frequency', y = 'Power') +
   theme_bw() +
+  scale_fill_manual(values = viridis(2, begin=0.25, end=0.75)) +
+  scale_color_manual(values = viridis(2, begin=0.125, end=0.875)) +
   scale_x_continuous(expand = c(0, 0)) +
   theme(axis.text.y = element_text(face="bold", size=6, angle=90),
         axis.text.x = element_text(face="bold", size=6),
@@ -158,7 +163,8 @@ p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=grou
 
 p
 ```
-_Figure 3: Equivalent power spectra in the top and bottom age quartiles._
+
+###### _Figure 3: Equivalent power spectra in the top and bottom age quartiles._ {#fig-spectrum}
 
 &nbsp;
 
