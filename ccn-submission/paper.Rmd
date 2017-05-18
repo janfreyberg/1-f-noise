@@ -42,9 +42,9 @@ library(magrittr)
 
 # load the data for the two MEG recordings
 task.data <- read_csv('../csv/task.csv') %>%
-  filter(removed_elecs < 0.2*204)
+  filter(removed_elecs < 1.2*204)
 rest.data <- read_csv('../csv/rest.csv') %>%
-  filter(removed_elecs < 0.2*204)
+  filter(removed_elecs < 1.2*204)
 both.data <- inner_join(task.data, rest.data, by=c('pid', 'sex', 'age'), suffix=c('.task', '.rest'))
 
 # add the MEG behavioral data
@@ -105,11 +105,13 @@ rest.slope.task.cor <- both.data %$% cor.test(average.slope.rest, average.slope.
 
 ```
 
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, fig.pos='B'}
+The relationship between 1/_f_ noise slope and age replicated ([Figure 1](#fig-slope-age), `r age.slope.cor`).
+
+```{r, echo=FALSE, fig.width=3.5, fig.height=2.5, fig.align='left', fig.cap="Relationship between 1/f noise during a sensorimotor task and age."}
 p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
   geom_smooth(method=lm, color='gray') +
   labs(y = "Average Slope", color='Age\n', x = "Age (years)") +
-  geom_point(size=1.2, show.legend = FALSE) +
+  geom_point(size=1.2, alpha=0.6, show.legend = FALSE) +
   scale_color_viridis() +
   theme_bw() +
   scale_x_continuous(expand = c(0, 0)) +
@@ -120,9 +122,7 @@ p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
 p
 ```
 
-###### _Figure 1: Relationship between 1/f noise during a sensorimotor task and age._ {#fig-slope-age}
-
-The relationship between 1/_f_ noise slope and age replicated ([Figure 1](#fig-slope-age), `r age.slope.cor`). There was however no evidence for a relationship between 1/_f_ noise and visual short term memory ([Figure 2](#fig-slope-rt), `r vstm.slope.cor`) or visual short-term memory (`r rt.slope.cor`).
+There was however no evidence for a relationship between 1/_f_ noise and visual short term memory ([Figure 2](#fig-slope-rt), `r vstm.slope.cor`) or visual short-term memory (`r rt.slope.cor`).
 
 We also found no relationship between the 1/_f_ noise slope during resting state and task (`r rest.slope.task.cor`). We did, however, find a relationship between 
 
@@ -130,7 +130,7 @@ To visualise this further, we plotted the power spectrum between 2 and 24 Hz for
 
 
 
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, warning=FALSE}
+```{r, echo=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, eval=FALSE, fig.cap="No relationship between 1/f noise and reaction times."}
 p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
   geom_smooth(method=lm, color='gray') +
   geom_point(size=1.2, show.legend=FALSE) +
@@ -145,9 +145,7 @@ p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
 p
 ```
 
-###### _Figure 2: No relationship between 1/f noise and reaction times._ {#fig-slope-rt}
-
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, warning=FALSE}
+```{r, echo=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, eval=FALSE, fig.cap="No relationship between 1/f noise and short-term memory."}
 p <- task.data %>%
   filter(Prcsn_ss4 <= 1) %>%
   ggplot(aes(x=Prcsn_ss4, y=average.slope, color=age)) +
@@ -164,9 +162,7 @@ p <- task.data %>%
 p
 ```
 
-###### _Figure 3: No relationship between 1/f noise and short-term memory._ {#fig-slope-memory}
-
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.6}
+```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, fig.cap="Power spectra in the top and bottom age quartiles."}
 p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=group)) +
   stat_summary(fun.y='mean', geom = 'line') +
   geom_ribbon(stat='summary', fun.data='mean_se',
@@ -186,8 +182,6 @@ p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=grou
 
 p
 ```
-
-###### _Figure 4: Equivalent power spectra in the top and bottom age quartiles._ {#fig-spectrum}
 
 # Conclusions
 
