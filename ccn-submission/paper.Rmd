@@ -52,7 +52,15 @@ task.data <- inner_join(task.data, read_csv('../csv/megbehavior.csv'))
 # add the VSTM behavioral data
 task.data <- read_csv('../csv/vstm-behavior.csv') %>%
   rename(pid = CCID) %>%
-  mutate(Prcsn_ss4 = as.numeric(Prcsn_ss4)) %>%
+  mutate(Prcsn_ss1 = as.numeric(Prcsn_ss1),
+         Prcsn_ss2 = as.numeric(Prcsn_ss2),
+         Prcsn_ss3 = as.numeric(Prcsn_ss3),
+         Prcsn_ss4 = as.numeric(Prcsn_ss4),
+         Doubt_ss1 = as.numeric(Doubt_ss1),
+         Doubt_ss2 = as.numeric(Doubt_ss2),
+         Doubt_ss3 = as.numeric(Doubt_ss3),
+         Doubt_ss4 = as.numeric(Doubt_ss4),
+         Prcsn_PerceptionTest = as.numeric(Prcsn_PerceptionTest)) %>%
   inner_join(task.data)
 
 # load the spectrum data for age split:
@@ -97,13 +105,13 @@ rest.slope.task.cor <- both.data %$% cor.test(average.slope.rest, average.slope.
 
 ```
 
-There was no evidence for a relationship between 1/_f_ noise slope and age ([Figure 1](#fig-slope-age), `r age.slope.cor`). There was also no evidence for a relationship between 1/_f_ noise and sensorimotor reaction times ([Figure 2](#fig-slope-rt), `r rt.slope.cor`) or visual short-term memory (`r vstm.slope.cor`).
+The relationship between 1/_f_ noise slope and age replicated ([Figure 1](#fig-slope-age), `r age.slope.cor`). There was however no evidence for a relationship between 1/_f_ noise and visual short term memory ([Figure 2](#fig-slope-rt), `r vstm.slope.cor`) or visual short-term memory (`r rt.slope.cor`).
 
 &nbsp;
 
 ```{r, echo=FALSE, fig.width=3.3, fig.height=2.6}
 p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
-  geom_smooth(method=lm, color='gray') +
+  geom_smooth(method="loess", color='gray') +
   labs(y = "Average Slope", color='Age\n', x = "Age (years)") +
   geom_point(size=1.2, show.legend = FALSE) +
   scale_color_viridis() +
