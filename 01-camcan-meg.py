@@ -66,7 +66,7 @@ print(f'Found subject information on {len([pid for pid in ids if pid in subject_
 veog = 'EOG062'
 heog = 'EOG061'
 ecg = 'ECG063'
-recording = 'task'
+recording = 'rest'
 fmin, fmax = 2, 24
 
 
