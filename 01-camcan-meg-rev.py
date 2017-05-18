@@ -97,7 +97,7 @@ ssscal = megdataroot / 'sss_cal.dat'
 all_parameters = []
 psds = []
 
-for subject in tqdm(range(len(subjects))):
+for subject in tqdm(reversed(range(len(subjects)))):
     if (Path('.') / 'pickles' /
         (ids[subject] + '-' + recording + '.pickle')).is_file():
         continue
