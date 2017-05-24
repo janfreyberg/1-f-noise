@@ -6,15 +6,19 @@ department: Forensic and Neurodevelopmental Sciences, King's College London
 address: 16 De Crespigny Park, SE5 8AF London, UK
 date: "12/05/2017"
 output:
-  pdf_document:
+  bookdown::pdf_document2:
     template: ccn_style.tex
     fig_caption: true
 
+params:
+  nboot: 5000
+urlcolor: blue
 header-includes:
   - \usepackage{hyperref}
+  - \usepackage{float}
 
 abstract: 
-  "Recent evidence points towards an increase in 1/_f_ neural noise (noise with decreasing power in higher frequency bands) with age. Previous evidence related this increase to a decrease in working memory performance. Here, we attempted to replicate previous findings with data from the Cam-CAN project. We used two minutes of a resting-state recording to estimate the power-spectral density of neural activity. We then correlated the $\\mathbf{\\beta}$ of a regression of noise on frequency with age, sensorimotor reaction times, and short-term memory performance. We reproduced previously demonstrated increases in 1/_f_ noise with age, but did not find a relationship with working memory performance, indicating that it may not be important in cognitive decline in ageing."
+  "Recent evidence points towards an increase in 1/_f_ neural noise (noise with decreasing power in higher frequency bands) with age. Previous evidence related this increase to a decrease in working memory performance. Here, we attempted to replicate previous findings with data from the Cam-CAN project. We used two minutes of a resting-state recording to estimate the power-spectral density of neural activity. We then correlated the $\\mathbf{\\beta}$ of a regression of noise on frequency with age, sensorimotor reaction times, and short-term memory performance. We reproduced previously demonstrated increases in 1/_f_ noise with age, but although 1/_f_ noise mediated a relationship between age and working memory, it did not independently predict working memory performance. These results indicate that 1/_f_ noise is a result of ageing, but that may contribute little to cognitive effects of ageing."
 
 keywords: MEG; noise; ageing
 bibliography: /Users/jan/Documents/Zotero/better-bibtex/zotero-library.bib
@@ -39,29 +43,24 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 library(magrittr)
+library(mediation)
 
 # load the data for the two MEG recordings
 task.data <- read_csv('../csv/task.csv') %>%
   filter(removed_elecs < 1.2*204)
 rest.data <- read_csv('../csv/rest.csv') %>%
   filter(removed_elecs < 1.2*204)
-both.data <- inner_join(task.data, rest.data, by=c('pid', 'sex', 'age'), suffix=c('.task', '.rest'))
 
 # add the MEG behavioral data
 task.data <- inner_join(task.data, read_csv('../csv/megbehavior.csv'))
 # add the VSTM behavioral data
 task.data <- read_csv('../csv/vstm-behavior.csv') %>%
   rename(pid = CCID) %>%
-  mutate(Prcsn_ss1 = as.numeric(Prcsn_ss1),
-         Prcsn_ss2 = as.numeric(Prcsn_ss2),
-         Prcsn_ss3 = as.numeric(Prcsn_ss3),
-         Prcsn_ss4 = as.numeric(Prcsn_ss4),
-         Doubt_ss1 = as.numeric(Doubt_ss1),
-         Doubt_ss2 = as.numeric(Doubt_ss2),
-         Doubt_ss3 = as.numeric(Doubt_ss3),
-         Doubt_ss4 = as.numeric(Doubt_ss4),
-         Prcsn_PerceptionTest = as.numeric(Prcsn_PerceptionTest)) %>%
+  mutate_each(funs(as.numeric), -pid) %>%
   inner_join(task.data)
+
+# load the 
+both.data <- inner_join(task.data, rest.data, by=c('pid', 'sex', 'age'), suffix=c('.task', '.rest'))
 
 # load the spectrum data for age split:
 age.split.spectra <- read_csv('../csv/agesplit-spectra.csv') %>%
@@ -71,8 +70,40 @@ age.split.spectra <- read_csv('../csv/agesplit-spectra.csv') %>%
   mutate(group = str_replace(group, 'young', 'Youngest 25%')) %>%
   mutate(group = factor(group, levels = c('Youngest 25%', 'Oldest 25%')))
 
-# load the vstm behavior data'vstm-behavior.csv'
+# helper function
+fmt_tex <- function(text){
+  str_replace(paste0("$", text, "$"), ', ', '$, $') %>%
+    str_replace('%', '\\\\%')
+}
 
+age.slope.task <- task.data %$% cor.test(age, average.slope, method='p') %>% apa(text, format='text') %>% fmt_tex()
+age.slope.rest <- rest.data %$% cor.test(age, average.slope, method='p') %>% apa(text, format='text') %>% fmt_tex()
+
+age.intercept.cor <- task.data %$% cor.test(age, average.intercept, method='p') %>% apa(text, format='text') %>% fmt_tex()
+rt.slope.cor <- task.data %$% cor.test(mean.rt, average.slope, method='p') %>% apa(text, format='text') %>% fmt_tex()
+vstm.slope.cor <- task.data %$% cor.test(Prcsn_ss2, average.slope, method='p') %>% apa(text, format='text') %>% fmt_tex()
+
+rest.slope.task.cor <- both.data %$% cor.test(average.slope.rest, average.slope.task, method='p') %>% apa(text, format='text') %>% fmt_tex()
+
+### Run a mediation analysis
+mediationresults <- mediate(lm(average.slope.rest ~ age, data=both.data),
+                            lm(formula = Prcsn_ss2 ~ average.slope.rest + age, data = both.data),
+                            treat='age', mediator='average.slope.rest', boot=TRUE, sims=params$nboot)
+total.eff <- paste0('b=', signif(mediationresults$tau.coef, digits=3), ', ',
+                    # ', 95% CI: ', signif(mediationresults$tau.ci[1], digits=3),
+                    # '-', signif(mediationresults$tau.ci[2], digits=3), ', ',
+                    ifelse(mediationresults$tau.p<0.001, 'p<0.001', paste0('p=', round(mediationresults$tau.p, digits=3)))) %>%
+  fmt_tex()
+direct.eff <- paste0('b=', signif(mediationresults$z0, digits=3), ', ',
+                    # '95% CI: ', signif(mediationresults$z0.ci[1], digits=3),
+                    # '-', signif(mediationresults$z0.ci[2], digits=3), ', ',
+                    ifelse(mediationresults$z0.p<0.001, 'p<0.001', paste0('p=', round(mediationresults$z0.p, digits=3)))) %>%
+  fmt_tex()
+indirect.eff <- paste0('b=', signif(mediationresults$d0, digits=3), ', ',
+                    # '95% CI: ', signif(mediationresults$d0.ci[1], digits=3),
+                    # '-', signif(mediationresults$d0.ci[2], digits=3), ', ',
+                    ifelse(mediationresults$d0.p<0.001, 'p<0.001', paste0('p=', round(mediationresults$d0.p, digits=3)))) %>%
+  fmt_tex()
 ```
 
 # Introduction
@@ -83,34 +114,24 @@ Here, we wanted to reproduce the finding and test its central hypoethis of a rel
 
 # Methods
 
-The Cam-CAN Stage 2 release includes one 8m40s resting-state and one 8m40s sensorimotor task MEG recordings for 647 participants. Resting-state recordings were conducted with eyes closed, and the sensorimotor task required button response to bilateral sine grating and concurrent audio tone presentation. Participants also completed behavioural tasks outside the MEG scanner. Here, we analysed a visual short term memory task: matching a sequence of hues, storing 1 to 4 hues in short-term memory.
+The Cam-CAN data includes one 8m40s resting-state and one 8m40s sensorimotor task MEG recordings for 647 participants. Resting-state recordings were conducted with eyes closed, and the sensorimotor task required button response to bilateral sine grating and concurrent audio tone presentation. Participants also completed behavioural tasks outside the MEG scanner. Here, we analysed a visual short term memory (VSTM) task: matching a sequence of hues, storing 1 to 4 hues in short-term memory.
 
 MEG recording methods are fully described in Taylor et al. [-@taylor_cambridge_2017]. Out of 647, we analysed `r nrow(rest.data)` resting-state and `r nrow(task.data)` task recordings. This subset of subjects had an average age of `r task.data %$% mean(age) %>% round(digits=1)` years (st.dev.: `r task.data %$% sd(age) %>% round(digits=1)`, range: `r task.data %$% min(age)`-`r task.data %$% max(age)`).
 
-All data analysis was performed using `MNE-python` [@gramfort_mne_2014, @gramfort_meg_2013]. We chose a random two-minute segment from the full recording. We performed temporal space-signal separation [tSSS, @taulu_applications_2005, correlation threshold 0.98; 10-sec sliding window], followed by ICA decomposition and removal of ICA components based on the highest correlation with the HEOG, VEOG and ECG channels. We then computed the log of the power-spectrum from 2 Hz to 7 Hz and from 14 Hz to 24 Hz, avoiding the alpha range [see @voytek_age-related_2015], using Welch's method (2 s sliding window, 50% overlap). We calculated a linear regression of this semi-log data for each gradiometer for each individual and removed any electrodes in which the intercept of this linear regression was two standard-deviations above or below the average for an individual was removed. We performed correlation analyses between the regression slope and age, sensorimotor reaction times and short-term memory.
+All data analysis was performed using `MNE-python` [@gramfort_mne_2014]. We chose a random two-minute segment from the full recording. We performed temporal space-signal separation [tSSS, @taulu_applications_2005, correlation threshold 0.98; 10s sliding window], followed by ICA decomposition and removal of ICA components based on the highest correlation with the HEOG, VEOG and ECG channels. We then computed the log of the power-spectrum from 2 Hz to 7 Hz and from 14 Hz to 24 Hz, avoiding the alpha range, using Welch's method (2s sliding window, 50% overlap). We calculated a linear regression of this semi-log data for each gradiometer for each individual and removed any sensors for which the intercept of this linear regression was two standard-deviations above or below the average for an individual was removed.
 
 # Results
 
-```{r test stats, echo=FALSE}
-# helper function
-fmt_tex <- function(text){
-  str_replace(paste0("$", apa(text, format='text'), "$"), ', ', '$, $')
-}
+The relationship between 1/_f_ noise slope and age replicated both during rest (`r age.slope.rest`) and task (Figure \@ref(fig:taskagecorr), `r age.slope.task`). The 1/_f_ slope during the two recordings predicted each other, although 1/_f_ noise fell more steeply during task (Figure \@ref(fig:resttaskcorr), `r rest.slope.task.cor`). We also found a strong relationship between the 1/_f_ noise slope during resting state and task (Figure \@ref(fig:resttaskcorr), `r rest.slope.task.cor`).
 
-age.slope.cor <- task.data %$% cor.test(age, average.slope, method='p') %>% fmt_tex()
-age.intercept.cor <- task.data %$% cor.test(age, average.intercept, method='p') %>% fmt_tex()
-rt.slope.cor <- task.data %$% cor.test(mean.rt, average.slope, method='p') %>% fmt_tex()
-vstm.slope.cor <- task.data %$% cor.test(Prcsn_ss4, average.slope, method='p') %>% fmt_tex()
-rest.slope.task.cor <- both.data %$% cor.test(average.slope.rest, average.slope.task, method='p') %>% fmt_tex()
+There was no evidence for a relationship between 1/_f_ noise and VSTM (`r vstm.slope.cor`) or sensorimotor reaction time (`r rt.slope.cor`). However, in a mediation analysis with age as predictor and 1/_f_ slope as mediator, we found that 1/_f_ noise partially mediated a strong relationship between age and VSTM (total effect: `r total.eff`; indirect effect: `r indirect.eff`)
 
-```
+We also analysed the relationship between 1/_f_ noise and age at each sensor for each recording (Figure \@ref(fig:topoplot)). We found differences between the two recordings in two clusters (Figure \@ref(fig:diffplot)).
 
-The relationship between 1/_f_ noise slope and age replicated ([Figure 1](#fig-slope-age), `r age.slope.cor`).
-
-```{r, echo=FALSE, fig.width=3.5, fig.height=2.5, fig.align='left', fig.cap="Relationship between 1/f noise during a sensorimotor task and age."}
+```{r taskagecorr, echo=FALSE, fig.width=3.5, fig.height=2, fig.pos='H', fig.align='left', fig.cap="\\textit{Relationship between 1/f noise during a sensorimotor task and age.}"}
 p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
   geom_smooth(method=lm, color='gray') +
-  labs(y = "Average Slope", color='Age\n', x = "Age (years)") +
+  labs(y = "Average slope (task)", color='Age\n', x = "Age (years)") +
   geom_point(size=1.2, alpha=0.6, show.legend = FALSE) +
   scale_color_viridis() +
   theme_bw() +
@@ -122,15 +143,42 @@ p <- ggplot(task.data, aes(x=age, y=average.slope, color=age)) +
 p
 ```
 
-There was however no evidence for a relationship between 1/_f_ noise and visual short term memory ([Figure 2](#fig-slope-rt), `r vstm.slope.cor`) or visual short-term memory (`r rt.slope.cor`).
+```{r resttaskcorr, echo=FALSE, fig.width=3.5, fig.height=2, fig.pos='H', fig.align='left', fig.cap="\\textit{Relationship between 1/f slope during task and rest.}"}
+limits <- both.data %$% c(min(min(average.slope.task), min(average.slope.rest)),
+                          max(max(average.slope.task), max(average.slope.rest)))
+lmdat <- tibble(x=limits, y=limits)
 
-We also found no relationship between the 1/_f_ noise slope during resting state and task (`r rest.slope.task.cor`). We did, however, find a relationship between 
+p <- ggplot(both.data, aes(x=average.slope.rest, y=average.slope.task, color=age)) +
+  geom_smooth(method=lm, color='gray') +
+  labs(x = "Average slope (task)", y = "Average slope (rest)", color='Age\n') +
+  geom_point(size = 1.2, alpha = 0.6, show.legend = FALSE) +
+  scale_color_viridis() +
+  theme_bw() +
+  geom_line(data = lmdat, aes(x = x, y = y), inherit.aes = FALSE) +
+  coord_cartesian(xlim = limits, ylim = limits) +
+  scale_x_continuous(expand = c(0, 0)) +
+  theme(axis.text.y = element_text(face="bold", size=6, angle=90),
+        axis.text.x = element_text(face="bold", size=6),
+        legend.position = 'bottom')
 
-To visualise this further, we plotted the power spectrum between 2 and 24 Hz for the top and bottom age quartile of our sample, demonstrating that there is no overall difference in the power spectra, and that the linear fall-off of log$_{10}$(power) with frequency is equivalent in the youngest and oldest age groups.
+p
+```
 
+```{r topoplot, fig.align='center', out.width='49%', fig.pos='H', echo=FALSE, fig.show='hold', fig.cap="\\textit{Correlation coefficients between age and 1/f noise for each sensor. Sensors for which this relationship was sigificant at cluster-corrected alpha level 0.05 are indicated by white circles.}"}
+knitr::include_graphics(c("figures/r-rest.pdf", "figures/r-task.pdf", "figures/r-cbar.pdf"))
+```
 
+```{r diffplot, fig.align='center', out.width=c('50%', '40%'), out.extra=sprintf('angle=%s', c(0, 90)), fig.pos='H', echo=FALSE, fig.show='hold', fig.cap="\\textit{The difference between the correlation of 1/f noise and age at each sensor. Sensors for which bootstrapped estimates of this difference were significant are highlighted.}"}
+knitr::include_graphics(c("figures/r-difference.pdf", "figures/r-difference-cbar.pdf"))
+```
 
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, eval=FALSE, fig.cap="No relationship between 1/f noise and reaction times."}
+# Conclusions
+
+This analysis replicates reports of increased 1/_f_ noise with age. We were unable to replicate a correlation between 1/_f_ noise with VSTM, and also found no relationship between 1/_f_ noise and sensorimotor reaction times. The difference between this and previous reports may stem from the fact that the MEG recordings took place separately to the VSTM task. Physiological noise occurring during the memory task would likely affect performance on that task more strongly. We believe that this analysis significantly adds to our understanding of how 1/_f_ noise in old age affects cognitive performance.
+
+# References
+
+```{r, echo=FALSE, eval=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, fig.cap="\textit{No relationship between 1/f noise and reaction times.}"}
 p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
   geom_smooth(method=lm, color='gray') +
   geom_point(size=1.2, show.legend=FALSE) +
@@ -145,7 +193,7 @@ p <- ggplot(task.data, aes(x=mean.rt, y=average.slope, color=age)) +
 p
 ```
 
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, eval=FALSE, fig.cap="No relationship between 1/f noise and short-term memory."}
+```{r, echo=FALSE, eval=FALSE, fig.width=3.3, fig.height=2.5, warning=FALSE, fig.cap="No relationship between 1/f noise and short-term memory."}
 p <- task.data %>%
   filter(Prcsn_ss4 <= 1) %>%
   ggplot(aes(x=Prcsn_ss4, y=average.slope, color=age)) +
@@ -162,7 +210,7 @@ p <- task.data %>%
 p
 ```
 
-```{r, echo=FALSE, fig.width=3.3, fig.height=2.6, fig.cap="Power spectra in the top and bottom age quartiles."}
+```{r, echo=FALSE, eval=FALSE, fig.width=3.3, fig.height=2.6, fig.cap="Power spectra in the top and bottom age quartiles."}
 p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=group)) +
   stat_summary(fun.y='mean', geom = 'line') +
   geom_ribbon(stat='summary', fun.data='mean_se',
@@ -182,13 +230,3 @@ p <- ggplot(age.split.spectra, aes(x=frequency, y=power, group=group, color=grou
 
 p
 ```
-
-# Conclusions
-
-This analysis did not confirm reports of increased 1/_f_ noise with age. We also found no evidence for a relationship between 1/_f_ noise with visual short-term memory, or sensorimotor reaction times. This difference between this and previous reports may stem from differences in methodology: First, this report utilised MEG data from a sensorimotor task and resting-state data, while Voytek and colleagues used ECoG data from a short-term memory task, and resting state EEG data. Second, this report used MEG data. Third, the tasks were not 100% equivalent between papers.
-
-Behavioral states have been shown to modulate 1/_f_ noise [@podvalny_unifying_2015], something which was true in this report. The differences in task between this and previous reports may therefore contribute to the difference in results. Additionally, we analysed a visual short-term memory task in analogy to previous work by Voytek at al. [-@voytek_age-related_2015]. However, this task was in fact done separately to the MEG sessions, which likely contributed to the lack of relationship between the 1/_f_ noise and task performance.
-
-We believe that this report illustrates that the link between age and 1/_f_ noise may not be robust.
-
-# References
